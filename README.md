@@ -10,7 +10,7 @@ Contour Extractor converts photos of people, animals, and other subjects into bl
 
 | Input photo | Extracted line art |
 |:---:|:---:|
-| ![Original input photo](input.png) | ![Extracted line-art output](output.png) |
+| ![Original input photo](input.jpg) | ![Extracted line-art output](output.png) |
 
 The preview above uses `input.png` and `output.png` stored at the repository root. Replace them with your own representative example images before publishing.
 
