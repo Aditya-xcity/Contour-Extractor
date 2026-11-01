@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Contour Studio</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="shell">
+    <header class="brand"><strong>Contour Studio</strong><span>Image to outline</span></header>
+    <section class="hero">
+      <p class="eyebrow">TRACE WITH CONFIDENCE</p>
+      <h1>Turn any image into an outline.</h1>
+      <p class="lede">Upload an image, tune the line work, and open a focused workspace for tracing.</p>
+    </section>
+    <section class="card upload-card">
+      <form id="upload-form">
+        <label id="drop-zone" class="drop-zone" for="image-input">
+          <input id="image-input" name="image" type="file" accept="image/*" hidden>
+          <span class="drop-icon">+</span>
+          <strong>Drop an image here</strong>
+          <span>or choose a file · PNG, JPG, WEBP up to 16 MB</span>
+        </label>
+        <div id="preview-wrap" class="preview-wrap" hidden>
+          <img id="preview" alt="Selected image preview">
+          <button type="button" class="text-button" id="change-image">Choose a different image</button>
+        </div>
+        <div id="upload-error" class="error" role="alert"></div>
+        <button class="primary wide" type="submit" id="upload-button">Continue to settings</button>
+      </form>
+    </section>
+    <section id="settings-card" class="card settings-card" hidden>
+      <div class="section-heading"><div><p class="eyebrow">STEP 2</p><h2>Shape the outline</h2></div><button id="reset-settings" class="text-button" type="button">Reset</button></div>
+      <form id="settings-form" class="controls">
+        <label>Detail level<select name="detail_level"><option value="">Custom</option><option value="detailed">Detailed</option><option value="medium" selected>Medium</option><option value="simple">Simple</option><option value="minimal">Minimal</option><option value="outline">Outline</option></select></label>
+        <label>Processing style<select name="style"><option value="lineart">Neural line art</option><option value="lineart-anime">Anime line art</option><option value="canny">Canny</option><option value="sketch">Sketch</option></select></label>
+        <label>Background<select name="background"><option value="transparent">Transparent</option><option value="white">White</option></select></label>
+        <label>Line-art resolution<select name="lineart_resolution"><option>256</option><option selected>512</option><option>768</option></select></label>
+        <label>Outer thickness<input name="outer_thickness" type="number" min="1" max="12" value="1"></label>
+        <label>Inner thickness<input name="inner_thickness" type="number" min="0" max="12" value="1"></label>
+        <label>Noise removal<input name="min_component_size" type="number" min="0" max="10000" value="4"></label>
+        <label class="check"><input name="segment_foreground" type="checkbox" checked> Segment foreground subject</label>
+        <button class="primary wide" type="submit" id="generate-button">Generate outline</button>
+      </form>
+      <div id="generate-status" class="status" role="status"></div>
+    </section>
+  </main>
+  <script src="{{ url_for('static', filename='app.js') }}"></script>
+</body>
+</html>

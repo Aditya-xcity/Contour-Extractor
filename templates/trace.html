@@ -1,0 +1,11 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Tracing workspace · Contour Studio</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head>
+<body class="workspace-body">
+<header class="workspace-toolbar"><a href="{{ url_for('result', image_id=image_id) }}" class="back">← Back</a><strong>Tracing workspace</strong><div class="toolbar-actions"><button id="undo" type="button">Undo</button><button id="redo" type="button">Redo</button><button id="fit" type="button">Fit</button><button id="export" class="primary" type="button">Export PNG</button></div></header>
+<main class="workspace">
+  <aside class="tool-panel"><h2>Draw</h2><label>Brush size <input id="brush-size" type="range" min="1" max="40" value="4"><output id="brush-value">4 px</output></label><label>Color <input id="brush-color" type="color" value="#17202a"></label><div class="button-row"><button id="eraser" type="button">Eraser</button><button id="clear" type="button">Clear</button></div></aside>
+  <section id="canvas-wrap" class="canvas-wrap"><canvas id="reference"></canvas><canvas id="drawing"></canvas></section>
+  <aside class="tool-panel"><h2>Reference</h2><label class="check"><input id="reference-visible" type="checkbox" checked> Show outline</label><label>Opacity <input id="reference-opacity" type="range" min="0" max="1" step=".05" value=".7"></label><label>Export background<select id="export-background"><option value="transparent">Transparent</option><option value="white">White</option></select></label><p class="hint">Draw with mouse, touch, or a stylus. Shift-drag to pan.</p></aside>
+</main>
+<script>window.OUTLINE_URL = "{{ url_for('image', image_id=image_id) }}";</script><script src="{{ url_for('static', filename='tracing.js') }}"></script>
+</body></html>

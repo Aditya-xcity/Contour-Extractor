@@ -1,143 +1,233 @@
-# contour-extractor
+# Contour Extractor
 
-CLI tool: photo with a person or animal in the foreground → clean line-art PNG with artist-style strokes. Uses a neural line-art model (controlnet-aux LineartDetector) for smooth continuous lines that match hand-drawn references, plus rembg for the outer silhouette. Five tunable detail tiers from `detailed` to `outline`.
+**Turn a photo into clean, customizable line art — then use it as a reference in a browser-based tracing workspace.**
 
-## Pipeline
+Contour Extractor converts photos of people, animals, and other subjects into black line-art PNGs with a **transparent or white background**. It combines foreground segmentation with a neural line-art detector to produce smooth outlines and recognizable inner details. It includes both a command-line interface and a local **Flask tracing workspace**.
 
-1. **`rembg`** (U2Net / ISNet) → alpha mask of the foreground subject
-2. **Mask refinement** — morphological close + open for a clean foreground boundary
-3. **`cv2.findContours`** on the mask → outer silhouette as a single uniform line
-4. **Neural line-art** (controlnet-aux LineartDetector / LineartAnimeDetector) on the original image → artist-quality inner strokes
-   - Fallback: Canny or XDoG (built-in) if neural deps aren't installed
-5. Hard threshold + connected-component pruning → flat black strokes, no gradients
-6. Composite as RGBA PNG, black strokes on transparent or opaque white
+> **Fork note:** Based on the original [contour-extractor by LyreZ61](https://github.com/LyreZ61/contour-extractor). The web tracing workspace is an extension of that project.
 
-## Setup
+## Before & after
 
-This project uses [`uv`](https://github.com/astral-sh/uv).
+| Input photo | Extracted line art |
+|:---:|:---:|
+| ![Original input photo](input.png) | ![Extracted line-art output](output.png) |
+
+The preview above uses `input.png` and `output.png` stored at the repository root. Replace them with your own representative example images before publishing.
+
+## Features
+
+- **Five detail presets:** `detailed`, `medium`, `simple`, `minimal`, and `outline`.
+- **Neural line-art extraction:** ControlNet auxiliary `LineartDetector` or `LineartAnimeDetector` for inner strokes.
+- **Foreground isolation:** `rembg` models such as U2Net and ISNet for subject silhouettes.
+- **Alternative edge styles:** Canny and Sketch/XDoG processing.
+- **Adjustable results:** Control stroke thickness, thresholding, mask cleanup, and neural processing resolution.
+- **PNG output:** Black strokes on transparent or solid white backgrounds.
+- **Local Flask workspace:** Upload a photo, configure extraction settings, and trace using a separate drawing canvas.
+- **CLI and batch workflow:** Convert one file or run the supplied batch script over example images.
+
+## How it works
+
+1. **Segment the foreground** with `rembg` to obtain an alpha mask of the subject.
+2. **Refine the mask** using morphological closing and opening.
+3. **Extract the silhouette** with OpenCV's `cv2.findContours`.
+4. **Detect inner strokes** using `LineartDetector` or `LineartAnimeDetector`; Canny and Sketch/XDoG are alternatives.
+5. **Clean the line art** with hard thresholding and connected-component filtering.
+6. **Export a PNG** with transparent or white background.
+
+The Flask app uses the same `extract_contour` processing engine as the CLI.
+
+## Installation
+
+### Prerequisites
+
+- Python **3.12**
+- [uv](https://github.com/astral-sh/uv), recommended for dependency management
+- Internet access for initial model-weight downloads
+
+### Clone and install
+
+Clone **your fork** (substitute your GitHub username):
 
 ```bash
-git clone https://github.com/LyreZ61/contour-extractor.git
+git clone https://github.com/YOUR_USERNAME/contour-extractor.git
 cd contour-extractor
+
 uv venv --python 3.12
 
-# CPU torch first (smaller, avoids CUDA bloat):
+# Install the CPU version of PyTorch first.
 uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cpu
 
-# everything else (rembg, controlnet-aux, opencv, etc.)
+# Install the remaining dependencies.
 uv pip install -r requirements.txt
+
+# Install Flask if it is not already listed in requirements.txt.
+uv pip install flask
 ```
 
-First run downloads model weights to `~/.u2net/` and the HuggingFace cache (~600 MB total). Subsequent runs are local.
+**Note:** On the first neural extraction, model weights are downloaded into the relevant `rembg` and Hugging Face caches. Subsequent runs can reuse those weights locally. Downloads and memory usage depend on the selected models.
 
-If you want the lightweight, no-torch path: skip the neural line-art install and use `--style canny` or `--style sketch`.
+## Web tracing workspace
 
-## Usage
+Run the Flask app from the repository root:
+
+**Windows (PowerShell):**
+
+```powershell
+.\.venv\Scripts\python.exe app.py
+```
+
+**macOS / Linux:**
+
+```bash
+.venv/bin/python app.py
+```
+
+Open **http://127.0.0.1:5000** in your browser.
+
+In the workspace:
+
+1. Upload an image.
+2. Select the extraction style and outline settings.
+3. Click **Start tracing**.
+4. Use the generated contour as a reference while drawing on the separate canvas.
+5. Export your drawing as a transparent PNG or choose a white background.
+
+The reference image and drawing canvas are separate, so the default transparent drawing export does not include the reference outline. The workspace uses randomized names for uploaded and exported files and is designed to clean up temporary files after 24 hours.
+
+For photos or artwork without a suitable isolated foreground, uncheck **Segment foreground subject** and experiment with **Canny** or **Sketch** styles.
+
+> The Flask development server is intended for **local use**. Do not expose it publicly with development/debug settings enabled.
+
+## Command-line usage
+
+**Windows (PowerShell):**
+
+```powershell
+.\.venv\Scripts\python.exe contour.py input.jpg output.png
+```
+
+**macOS / Linux:**
 
 ```bash
 .venv/bin/python contour.py input.jpg output.png
 ```
 
-### Detail tiers
+### Detail levels
 
-`--detail-level` picks one of five presets that step from dense artist-style strokes down to a pure silhouette:
+Choose one of five presets with `--detail-level`:
+
+| Preset | Result |
+|---|---|
+| `detailed` | Dense artist-style inner strokes (default preset) |
+| `medium` | Fewer strokes while retaining recognizable features |
+| `simple` | Main facial or subject features |
+| `minimal` | Silhouette with only a few internal hints |
+| `outline` | Outer silhouette only |
 
 ```bash
-# dense artist-style strokes (default)
+# Detailed strokes
 .venv/bin/python contour.py photo.jpg out.png --model u2net_human_seg --detail-level detailed
 
-# fewer strokes, still recognisable features
+# Medium detail
 .venv/bin/python contour.py photo.jpg out.png --model u2net_human_seg --detail-level medium
 
-# key features only — eyes, mouth, hair outline
+# Simplified features
 .venv/bin/python contour.py photo.jpg out.png --model u2net_human_seg --detail-level simple
 
-# outline + minimal feature hints
+# Minimal inner features
 .venv/bin/python contour.py photo.jpg out.png --model u2net_human_seg --detail-level minimal
 
-# pure silhouette, no inner detail
+# Silhouette only
 .venv/bin/python contour.py photo.jpg out.png --model u2net_human_seg --detail-level outline
 ```
 
-### Recipes
+### Example recipes
 
 ```bash
-# default — neural line-art, transparent background, human subject
+# Default: line art with a transparent background
 .venv/bin/python contour.py photo.jpg out.png --model u2net_human_seg
 
-# opaque white background (printable)
+# Printable white background
 .venv/bin/python contour.py photo.jpg sketch.png --model u2net_human_seg --background white
 
-# animal photo
+# Animal photo
 .venv/bin/python contour.py cat.jpg cat_line.png --model isnet-general-use
 
-# higher-resolution neural detection (slower, more fine detail)
+# Higher neural processing resolution (slower)
 .venv/bin/python contour.py photo.jpg out.png --lineart-resolution 768
 
-# fall back to classic Canny (no torch required)
+# Classic Canny extraction
 .venv/bin/python contour.py photo.jpg out.png --style canny
 ```
 
-### Batch over a folder
+On Windows, replace `.venv/bin/python` with `.\.venv\Scripts\python.exe` in these examples.
 
-```bash
-./batch.sh
-```
+### CLI options
 
-Reads `examples/test/*.jpg`, writes transparent + white variants to `examples/test_out/`.
-
-## Options
-
-| Flag | Default | Purpose |
-|------|---------|---------|
-| `--model` | `u2net` | `u2net_human_seg` for humans, `isnet-general-use` strong all-rounder |
-| `--style` | `lineart` | `lineart` (neural, default), `lineart-anime` (cleaner/simpler), `canny`, `sketch` |
-| `--detail-level` | — | `detailed` / `medium` / `simple` / `minimal` / `outline` (overrides individual flags) |
-| `--lineart-resolution` | `512` | working resolution for the neural model (256/512/768) |
-| `--lineart-coarse` | off | coarse mode of `LineartDetector` (only `--style lineart`) |
+| Flag | Default | Description |
+|---|---|---|
+| `--model` | `u2net` | Foreground model; e.g. `u2net_human_seg`, `isnet-general-use` |
+| `--style` | `lineart` | `lineart`, `lineart-anime`, `canny`, or `sketch` |
+| `--detail-level` | None | Detail preset; overrides individual detail settings |
+| `--lineart-resolution` | `512` | Neural model working resolution, e.g. `256`, `512`, `768` |
+| `--lineart-coarse` | Off | Coarse mode for the `lineart` detector |
 | `--background` | `transparent` | `transparent` or `white` |
-| `--outer-thickness` | `1` | silhouette line width px (match `--inner-thickness` for uniform stroke) |
-| `--inner-thickness` | `1` | inner edge dilation px |
-| `--binarize-threshold` | `20` | inner-edge threshold (0–255). Lower = more strokes kept |
-| `--inner-close` | `0` | morphological close radius on inner edges (reconnects gaps) |
-| `--min-component-size` | `4` | drop stroke components smaller than N pixels |
-| `--canny-low` / `--canny-high` | `30` / `80` | Canny thresholds (only `--style canny`) |
-| `--alpha-matting` | off | sharper fur/hair contour from rembg |
-| `--mask-close` / `--mask-open` | `4` / `2` | mask morphological cleanup radii |
-| `--no-inner` | off | silhouette only |
+| `--outer-thickness` | `1` | Outer silhouette stroke width in pixels |
+| `--inner-thickness` | `1` | Inner stroke dilation in pixels |
+| `--binarize-threshold` | `20` | Keep inner edges above threshold, 0–255 |
+| `--inner-close` | `0` | Closing radius to reconnect inner strokes |
+| `--min-component-size` | `4` | Remove small isolated components |
+| `--canny-low` / `--canny-high` | `30` / `80` | Canny edge thresholds |
+| `--alpha-matting` | Off | Improve edges around hair or fur |
+| `--mask-close` / `--mask-open` | `4` / `2` | Foreground-mask cleanup radii |
+| `--no-inner` | Off | Export silhouette without inner strokes |
 
-## Tuning cheatsheet
+### Tuning tips
 
-- **Try detail tiers first** — `--detail-level detailed/medium/simple/minimal/outline` covers most needs
-- **Want thicker lines** → raise both `--outer-thickness` and `--inner-thickness` together (e.g. `2 2`)
-- **Output too dense** → step down a tier, or raise `--binarize-threshold`
-- **Output too sparse** → step up a tier, or lower `--binarize-threshold`
-- **Outer contour ragged on fuzzy subjects (hair, fur)** → enable `--alpha-matting`
-- **Wrong subject detected** → try `--model isnet-general-use` or `--model silueta`
-- **No torch / want fast** → `--style canny` (classic, no neural model)
+- **Too much detail?** Choose `simple` or `minimal`, or raise `--binarize-threshold`.
+- **Not enough detail?** Choose `medium` or `detailed`, or lower `--binarize-threshold`.
+- **Need bolder lines?** Increase `--outer-thickness` and `--inner-thickness` together.
+- **Hair or fur edges look rough?** Try `--alpha-matting`.
+- **Wrong foreground selected?** Try `--model isnet-general-use` or `--model silueta`.
+- **Want a non-neural edge style?** Try `--style canny` or `--style sketch`.
 
-## Test set
+## Batch processing and sample images
 
-`examples/test/urls.txt` lists 15 [Unsplash](https://unsplash.com) photos (portraits, cats, dogs, horses, wildlife).
+The supplied batch script processes `examples/test/*.jpg` and writes transparent and white-background results to `examples/test_out/`.
 
 ```bash
 ./scripts/fetch_test_images.sh
 ./batch.sh
 ```
 
-Showcase renderings live in `examples/test_out/`. Photos used under the [Unsplash License](https://unsplash.com/license).
+The original project's `examples/test/urls.txt` lists 15 photographs sourced from [Unsplash](https://unsplash.com/), with image use subject to the [Unsplash License](https://unsplash.com/license). See `examples/test_out/` for batch-generated showcase images when available.
 
-## Repo layout
+## Repository structure
 
+```text
+contour-extractor/
+├── app.py                       # Flask web application (fork extension)
+├── contour.py                   # Core extraction engine and CLI
+├── batch.sh                     # Batch processing script
+├── requirements.txt             # Python dependencies
+├── README.md                    # Project documentation
+├── LICENSE                      # MIT license
+├── input.png                    # Before image for README showcase
+├── output.png                   # After image for README showcase
+├── scripts/
+│   └── fetch_test_images.sh     # Download example photos
+└── examples/
+    ├── test/
+    │   └── urls.txt
+    └── test_out/                 # Example processed images
 ```
-contour.py                    main CLI
-batch.sh                      batch driver over examples/test/
-requirements.txt              Python deps
-scripts/fetch_test_images.sh  download the 15-image Unsplash test set
-examples/test/urls.txt        source URLs
-examples/test_out/            rendered showcase outputs (committed)
-```
+
+The tree shows the documented core files. Your local Flask implementation may also include additional folders for templates, static resources, and temporary uploads or exports.
+
+## Credits
+
+The contour-extraction pipeline originates from **[LyreZ61/contour-extractor](https://github.com/LyreZ61/contour-extractor)**. This fork adds the local Flask tracing workspace and associated workflow improvements. Core libraries include [rembg](https://github.com/danielgatis/rembg), [OpenCV](https://opencv.org/), and [controlnet-aux](https://github.com/huggingface/controlnet_aux).
 
 ## License
 
-[MIT](LICENSE).
+Distributed under the [MIT License](LICENSE). Preserve the upstream copyright and license notices when distributing modifications.

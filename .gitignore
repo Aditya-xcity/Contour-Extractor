@@ -3,6 +3,12 @@ __pycache__/
 *.pyc
 *.pyo
 .DS_Store
+uploads/*
+outputs/*
+exports/*
+!uploads/.gitkeep
+!outputs/.gitkeep
+!exports/.gitkeep
 
 # downloaded test images (Unsplash — hotlinkable, fetch with scripts/fetch_test_images.sh)
 examples/test/*.jpg

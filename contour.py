@@ -349,10 +349,14 @@ def extract_contour(
     alpha_matting: bool = False,
     mask_close: int = 4,
     mask_open: int = 2,
+    segment_foreground: bool = True,
 ) -> None:
     img = load_image_bgr(input_path)
-    mask = foreground_mask(img, model, alpha_matting=alpha_matting)
-    mask = refine_mask(mask, close_radius=mask_close, open_radius=mask_open)
+    if segment_foreground:
+        mask = foreground_mask(img, model, alpha_matting=alpha_matting)
+        mask = refine_mask(mask, close_radius=mask_close, open_radius=mask_open)
+    else:
+        mask = np.full(img.shape[:2], 255, dtype=np.uint8)
     outer = outer_contour_layer(mask, outer_thickness, smooth)
     if inner_thickness <= 0:
         inner = np.zeros_like(mask, dtype=np.uint8)

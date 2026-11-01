@@ -1,0 +1,3 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Outline · Contour Studio</title><link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}"></head>
+<body><main class="shell result-page"><header class="brand"><strong>Contour Studio</strong><a href="/">New image</a></header><section class="card result-card"><p class="eyebrow">YOUR OUTLINE</p><h1>Ready to trace?</h1><div class="result-image"><img src="{{ url_for('image', image_id=image_id) }}" alt="Generated outline"></div><a class="primary button-link" href="{{ url_for('trace', image_id=image_id) }}">Start tracing</a></section></main></body></html>
